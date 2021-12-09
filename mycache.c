@@ -8,90 +8,86 @@
 #define WRITE 1
 
 
-struct missReturn mycache(int l1_size, int block_size, int set_size, char* filename)
-{
-    
-    struct cblock *L1, *L2;
-    L1 = (struct cblock*)malloc(sizeof(struct cblock)*l1_size);
-    L2 = (struct cblock*)malloc(sizeof(struct cblock)*L2SZ);
 
-    int write_back = 0;
-    int miss= 0, miss2 = 0;
-    int total = 0;
-    struct missReturn myreturn;
 
+
+void try_hit_cache(int addr, int order){
     int i;
-    for(i=0;i<l1_size;i+=block_size)
-    {
-        L1[i].hit=0;
-        L1[i].tag=-1;
-    }
-    for(i=0;i<L2SZ;i+=block_size)
-    {
-        L2[i].hit=0;
-        L2[i].tag=-1;
-    }
-    FILE *fin = fopen(filename,"r");
-    int order, addr;
-    while(fscanf(fin,"%d %x",&order,&addr)!=EOF){
-        total++;
+    total++;
        // printf("%dth item\n",total);
        // addr/=4;
-        int l1set = (addr%l1_size)/block_size/set_size;
-        int l1tag = (addr/l1_size);
+        int l1set = (addr%(l1_size/2))/block_size/set_size;
+        int l1tag = (addr/(l1_size/2));
         int l1miss= 0;
         int minHit = 99999999, minloc = -1;
+        int l1hit = 0;
        
         //printf("%d %d %d\n",addr,l1set,l1tag);
-        for(i=0;i<set_size;i++)
+
+        if(order==2)
         {
-            int ca_pos = l1set*block_size*set_size + i*block_size;
-            if(L1[ca_pos].tag == -1)
+            L1 = L1_i;
+                //I cache
+        }
+        else{
+                //D cache
+            L1=L1_d;
+            
+        }
+        for(i=0;i<set_size;i++)
+            {
+                int ca_pos = l1set*block_size*set_size + i*block_size;
+                
+                
+
+                if(L1[ca_pos].tag == -1)
+                {
+                    /**
+                     * L1 Miss : empty Cache
+                     * 
+                     */
+                    miss++;
+                    L1[ca_pos].tag = l1tag;
+                    L1[ca_pos].hit = total;
+                    L1[ca_pos].type = order;
+                    l1miss=1;
+                    minloc=-1;
+                    break;
+                }
+                else if(L1[ca_pos].tag == l1tag)
+                {
+                    /**
+                     * L1 Hit
+                     * 
+                     */
+                    l1hit = 1;
+                    if(order==WRITE) L1[ca_pos].type = WRITE;
+                    L1[ca_pos].hit = total;
+                    minloc=-1;
+                    break;
+                }
+                else if(minHit>L1[ca_pos].hit){
+                    minHit = L1[ca_pos].hit;
+                    
+                    minloc = ca_pos;
+                }
+                
+            }
+            if(minloc!=-1)
             {
                 /**
-                 * L1 Miss : empty Cache
+                 * L1 miss : No avaliable space
                  * 
                  */
                 miss++;
-                L1[ca_pos].tag = l1tag;
-                L1[ca_pos].hit = total;
-                L1[ca_pos].type = order;
+                L1[minloc].hit = 1;
                 l1miss=1;
-                minloc=-1;
-                break;
+                L1[minloc].tag = l1tag;
+                L1[minloc].type = order;
             }
-            else if(L1[ca_pos].tag == l1tag)
-            {
-                /**
-                 * L1 Hit
-                 * 
-                 */
-                if(order==WRITE) L1[ca_pos].type = WRITE;
-                L1[ca_pos].hit = total;
-                minloc=-1;
-                break;
-            }
-            else if(minHit>L1[ca_pos].hit){
-                minHit = L1[ca_pos].hit;
-                
-                minloc = ca_pos;
-            }
-            
-        }
-        if(minloc!=-1)
-        {
-            /**
-             * L1 miss : No avaliable space
-             * 
-             */
-            miss++;
-            L1[minloc].hit = 1;
-            l1miss=1;
-            L1[minloc].tag = l1tag;
-            L1[minloc].type = order;
-        }
         if(l1miss==1)
         {
+            l2total++;
             minHit = 99999999;
             minloc = -1;
             int l2tag= addr/L2SZ;
@@ -140,11 +136,60 @@ struct missReturn mycache(int l1_size, int block_size, int set_size, char* filen
                 L2[minloc].type = order;
             }
         }
+}
+
+struct missReturn mycache(int _l1_size, int _block_size, int _set_size)
+{
+    
+    l1_size = _l1_size;
+    block_size = _block_size;
+    set_size = _set_size;
+    L1_i = (struct cblock*)malloc(sizeof(struct cblock)*l1_size/2);
+    L1_d = (struct cblock*)malloc(sizeof(struct cblock)*l1_size/2);
+    
+    L2 = (struct cblock*)malloc(sizeof(struct cblock)*L2SZ);
+
+    write_back = 0;
+    miss= 0;
+    miss2 = 0;
+    total = 0;
+    l2total = 0;
+    struct missReturn myreturn;
+
+    int i;
+    for(i=0;i<l1_size/2;i+=block_size)
+    {
+        L1_i[i].hit=0;
+        L1_i[i].tag=-1;
+        L1_d[i].hit=0;
+        L1_d[i].tag=-1;
+    }
+    for(i=0;i<L2SZ;i+=block_size)
+    {
+        L2[i].hit=0;
+        L2[i].tag=-1;
+    }
+    int order, addr;
+    FILE *fin = fopen("trace1.din","r");
+    
+    while(fscanf(fin,"%d %x",&order,&addr)!=EOF){
+        try_hit_cache(addr,order);
     }
 
     close(fin);  
+     fin = fopen("trace2.din","r");
+    
+    while(fscanf(fin,"%d %x",&order,&addr)!=EOF){
+        try_hit_cache(addr,order);
+    }
+
+    close(fin);  
+
+    free(L1_i);
+    free(L1_d);
+    free(L2);
     myreturn.L1miss = (double)miss/(double)total;
-    myreturn.L2miss = (double)miss2/(double)total;
+    myreturn.L2miss = (double)miss2/(double)l2total;
     myreturn.write_back = write_back;
     myreturn.total=total;
     return myreturn;
