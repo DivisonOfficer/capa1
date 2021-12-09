@@ -109,7 +109,7 @@ void try_hit_cache(int addr, int order){
                     l1miss=1;
                     break;
                 }
-                else if(L2[cpos].tag == l1tag)
+                else if(L2[cpos].tag == l2tag)
                 {
                     /**
                      * L2 Hit
@@ -138,7 +138,7 @@ void try_hit_cache(int addr, int order){
         }
 }
 
-struct missReturn mycache(int _l1_size, int _block_size, int _set_size)
+struct missReturn mycache(int _l1_size, int _block_size, int _set_size, char * filename)
 {
     
     l1_size = _l1_size;
@@ -170,25 +170,22 @@ struct missReturn mycache(int _l1_size, int _block_size, int _set_size)
         L2[i].tag=-1;
     }
     int order, addr;
-    FILE *fin = fopen("trace1.din","r");
+    FILE *fin = fopen(filename,"r");
     
     while(fscanf(fin,"%d %x",&order,&addr)!=EOF){
         try_hit_cache(addr,order);
     }
 
     close(fin);  
-     fin = fopen("trace2.din","r");
     
-    while(fscanf(fin,"%d %x",&order,&addr)!=EOF){
-        try_hit_cache(addr,order);
-    }
-
     close(fin);  
 
     free(L1_i);
     free(L1_d);
     free(L2);
+    //printf("%d %d\n",miss,miss2);
     myreturn.L1miss = (double)miss/(double)total;
+
     myreturn.L2miss = (double)miss2/(double)l2total;
     myreturn.write_back = write_back;
     myreturn.total=total;

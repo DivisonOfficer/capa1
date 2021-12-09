@@ -58,7 +58,7 @@ void try_hit_cache_depen(int order, int addr)
                 minloc= -1;
                 //ca_pos = -1;
                 //if(order==0) is_read_l2 = 1;
-                //l1miss=1;
+                l1miss=1;
                 break;
             }
             else if(L1[ca_pos].tag == l1tag)
@@ -78,7 +78,7 @@ void try_hit_cache_depen(int order, int addr)
             }
             
         }
-       
+       unsigned int addrr ;
         if(minloc!=-1)
         {
             
@@ -87,9 +87,10 @@ void try_hit_cache_depen(int order, int addr)
              * save previous value in L2
              */
             miss++;
-            addr = L1[minloc].tag * l1_size + minloc;
+            
             L1[minloc].hit = total;
             l1miss=1;
+            addrr = L1[minloc].tag * (l1_size/2) + minloc;
             l2order = L1[minloc].type;
             L1[minloc].tag = l1tag;
             L1[minloc].type = order;
@@ -105,7 +106,60 @@ void try_hit_cache_depen(int order, int addr)
             l2total++;
             minHit = 99999999;
             minloc = -1;
-            unsigned int addrr = addr;
+            
+            int l2tag= addr/L2SZ;
+            int l2set = (addr%L2SZ) / block_size / L2SSZ;
+            
+            for(i=0;i<L2SSZ;i++)
+            {
+                int cpos = l2set*block_size*L2SSZ + i*block_size;
+                //printf("%d %d %d\n",l2tag, l2set, cpos);
+                //return;
+                if(L2[cpos].tag == -1)
+                {
+                    /**
+                     * L2 Miss : empty Cache
+                     * 
+                     */
+                    miss2++;
+                    
+                    minloc=-1;
+                    
+                    break;
+                }
+                else if(L2[cpos].tag == l2tag)
+                {
+                    /**
+                     * L2 Hit
+                     * 
+                     */
+                    minloc=-1;
+                    L2[cpos].hit =-1;
+                    L2[cpos].tag = -1;
+                    
+                    break;
+                }
+                else if(minHit>L2[cpos].hit){
+                    minHit = L2[cpos].hit;
+                    minloc = cpos;
+                }
+            }if(minloc!=-1)
+            {
+                
+                /**
+                 * L2 miss : No avaliable space
+                 * 
+                 */
+                
+                miss2++;
+            }
+        }
+
+        if(is_save_l2==1)
+        {
+            minHit = 99999999;
+            minloc = -1;
+            
             int l2tag= addrr/L2SZ;
             int l2set = (addrr%L2SZ) / block_size / L2SSZ;
             
@@ -120,15 +174,14 @@ void try_hit_cache_depen(int order, int addr)
                      * L2 Miss : empty Cache
                      * 
                      */
-                    miss2++;
-                    L2[cpos].tag = l1tag;
+                    L2[cpos].tag = l2tag;
                     L2[cpos].hit = total;
-                    L2[cpos].type = l2order;
+                    
                     minloc=-1;
                     
                     break;
                 }
-                else if(L2[cpos].tag == l1tag)
+                else if(L2[cpos].tag == l2tag)
                 {
                     /**
                      * L2 Hit
@@ -136,7 +189,8 @@ void try_hit_cache_depen(int order, int addr)
                      */
                     minloc=-1;
                     L2[cpos].hit =total;
-                    if(l2order==WRITE) L2[cpos].type = WRITE;
+                    if(l2order == WRITE) L2[cpos].type = WRITE;
+                    
                     break;
                 }
                 else if(minHit>L2[cpos].hit){
@@ -150,16 +204,16 @@ void try_hit_cache_depen(int order, int addr)
                  * L2 miss : No avaliable space
                  * 
                  */
-                miss2++;
-                if(L2[minloc].type ==WRITE) write_back ++;
-                L2[minloc].type = l2order;
+                if(L2[minloc].type==WRITE) write_back ++;
                 L2[minloc].hit = total;
                 L2[minloc].tag = l2tag;
+                L2[minloc].type = l2order;
+                
             }
         }
 }
 
-struct missReturn mycache_dependent(int _l1_size, int _block_size, int _set_size)
+struct missReturn mycache_dependent(int _l1_size, int _block_size, int _set_size,char * filename)
 {
     
     l1_size = _l1_size;
@@ -188,7 +242,7 @@ struct missReturn mycache_dependent(int _l1_size, int _block_size, int _set_size
         L2[i].hit=0;
         L2[i].tag=-1;
     }
-    FILE *fin = fopen("trace1.din","r");
+    FILE *fin = fopen(filename,"r");
     int order, addr;
     write_back = 0;
     while(fscanf(fin,"%d %x",&order,&addr)!=EOF){
@@ -196,10 +250,7 @@ struct missReturn mycache_dependent(int _l1_size, int _block_size, int _set_size
     }
 
     close(fin);  
-    fin = fopen("trace2.din","r");
-    while(fscanf(fin,"%d %x",&order,&addr)!=EOF){
-        try_hit_cache_depen(order,addr);
-    }
+   
 
     close(fin);  
     free(L1_i);
