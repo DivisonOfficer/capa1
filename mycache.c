@@ -14,6 +14,7 @@
 void try_hit_cache(int addr, int order){
     int i;
     total++;
+    
        // printf("%dth item\n",total);
        // addr/=4;
         int l1set = (addr%(l1_size/2))/block_size/set_size;
@@ -27,11 +28,13 @@ void try_hit_cache(int addr, int order){
         if(order==2)
         {
             L1 = L1_i;
+            totali++;
                 //I cache
         }
         else{
                 //D cache
             L1=L1_d;
+            totald++;
             
         }
         for(i=0;i<set_size;i++)
@@ -46,7 +49,8 @@ void try_hit_cache(int addr, int order){
                      * L1 Miss : empty Cache
                      * 
                      */
-                    miss++;
+                    if(order==2) missi++;
+                    else miss++;
                     L1[ca_pos].tag = l1tag;
                     L1[ca_pos].hit = total;
                     L1[ca_pos].type = order;
@@ -79,7 +83,8 @@ void try_hit_cache(int addr, int order){
                  * L1 miss : No avaliable space
                  * 
                  */
-                miss++;
+                if(order==2) missi++;
+                else miss++;
                 L1[minloc].hit = 1;
                 l1miss=1;
                 L1[minloc].tag = l1tag;
@@ -151,9 +156,12 @@ struct missReturn mycache(int _l1_size, int _block_size, int _set_size, char * f
 
     write_back = 0;
     miss= 0;
+    missi=0;
     miss2 = 0;
     total = 0;
     l2total = 0;
+    totali=0;
+    totald=0;
     struct missReturn myreturn;
 
     int i;
@@ -184,7 +192,8 @@ struct missReturn mycache(int _l1_size, int _block_size, int _set_size, char * f
     free(L1_d);
     free(L2);
     //printf("%d %d\n",miss,miss2);
-    myreturn.L1miss = (double)miss/(double)total;
+    myreturn.L1miss = (double)miss/(double)totald;
+    myreturn.L1Imiss = (double)missi/(double)totali;
 
     myreturn.L2miss = (double)miss2/(double)l2total;
     myreturn.write_back = write_back;

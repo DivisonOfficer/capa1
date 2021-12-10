@@ -33,6 +33,7 @@ void try_hit_cache_depen(int order, int addr)
              * I cache
              * 
              */
+            totali++;
             L1 = L1_i;
         }
         else{
@@ -40,6 +41,7 @@ void try_hit_cache_depen(int order, int addr)
              * d cache
              * 
              */
+            totald++;
             L1 = L1_d;
         }
         for(i=0;i<set_size;i++)
@@ -54,7 +56,8 @@ void try_hit_cache_depen(int order, int addr)
                 L1[ca_pos].tag = l1tag;
                 L1[ca_pos].hit = total;
                 L1[ca_pos].type = order;
-                miss++;
+                if(order==2) missi++;
+                    else miss++;
                 minloc= -1;
                 //ca_pos = -1;
                 //if(order==0) is_read_l2 = 1;
@@ -86,7 +89,8 @@ void try_hit_cache_depen(int order, int addr)
              * L1 miss : No avaliable space
              * save previous value in L2
              */
-            miss++;
+            if(order==2) missi++;
+                    else miss++;
             
             L1[minloc].hit = total;
             l1miss=1;
@@ -215,7 +219,9 @@ void try_hit_cache_depen(int order, int addr)
 
 struct missReturn mycache_dependent(int _l1_size, int _block_size, int _set_size,char * filename)
 {
-    
+    totali=0;
+    totald=0;
+    missi=0;
     l1_size = _l1_size;
     set_size = _set_size;
     block_size = _block_size;
@@ -256,7 +262,9 @@ struct missReturn mycache_dependent(int _l1_size, int _block_size, int _set_size
     free(L1_i);
     free(L1_d);
     free(L2);
-    myreturn.L1miss = (double)miss/(double)total;
+    myreturn.L1miss = (double)miss/(double)totald;
+    myreturn.L1Imiss = (double)missi/(double)totald;
+    
     myreturn.L2miss = (double)miss2/(double)l2total;
     myreturn.write_back = write_back;
     myreturn.total=total;
